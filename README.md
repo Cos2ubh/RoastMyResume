@@ -101,9 +101,15 @@ RoastMyResume/
 │   └── .env                 # Environment variables (not in repo)
 ├── frontend/
 │   ├── lib/
-│   │   └── main.dart       # Flutter app UI & logic
+│   │   └── main.dart       # Flutter web app UI & logic
 │   ├── pubspec.yaml        # Flutter dependencies
 │   └── web/                # Web assets
+├── app/
+│   ├── lib/
+│   │   └── main.dart       # Flutter mobile app UI & logic
+│   ├── pubspec.yaml        # Flutter dependencies
+│   ├── android/            # Android platform files
+│   └── ios/                # iOS platform files
 └── README.md
 ```
 
