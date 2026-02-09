@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
 import fitz  # PyMuPDF
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -10,7 +11,7 @@ from pydantic import BaseModel
 # 1.  Load .env then configure Gemini
 # ---------------------------------------------------------------------------
 load_dotenv()
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 app = FastAPI()
 
@@ -50,14 +51,17 @@ async def roast_resume(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Could not extract any text from the PDF.")
 
     # --- send to Gemini ---
-    model = genai.GenerativeModel("models/gemini-2.5-flash")
     prompt = (
         "You are a brutally honest but hilarious resume roaster. "
         "Roast the following resume in a funny, sarcastic way. "
         "Be brutal but entertaining. Keep it under 200 words.\n\n"
         f"Resume:\n{text}\n\nRoast:"
     )
-    response = model.generate_content(prompt)
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash-exp",
+        contents=prompt
+    )
 
     return RoastResponse(roast=response.text)
 
