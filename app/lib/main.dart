@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'config.dart';
 
 void main() {
   runApp(const MyApp());
@@ -83,7 +84,7 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
         throw Exception('Could not read file');
       }
 
-      final uri = Uri.parse('http://localhost:8000/roast');
+      final uri = Uri.parse(AppConfig.roastUrl);
       final request = http.MultipartRequest('POST', uri);
       request.files.add(http.MultipartFile.fromBytes(
         'file',

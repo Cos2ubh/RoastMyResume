@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'config.dart';
 
 void main() {
   runApp(const MyApp());
@@ -83,7 +84,7 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
         throw Exception('Could not read file');
       }
 
-      final uri = Uri.parse('http://localhost:8000/roast');
+      final uri = Uri.parse(AppConfig.roastUrl);
       final request = http.MultipartRequest('POST', uri);
       request.files.add(http.MultipartFile.fromBytes(
         'file',
@@ -156,7 +157,7 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -246,7 +247,7 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -283,7 +284,7 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -319,7 +320,7 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
