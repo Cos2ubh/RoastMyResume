@@ -101,22 +101,26 @@ A full-stack web application that uses Google's Gemini AI to generate hilarious,
 ```
 RoastMyResume/
 ├── backend/
-│   ├── main.py              # FastAPI server & endpoints
+│   ├── main.py              # FastAPI server & endpoints with logging
 │   ├── requirements.txt     # Python dependencies
 │   ├── list_models.py       # Utility to list available Gemini models
-│   └── .env                 # Environment variables (not in repo)
+│   ├── .env                 # Environment variables (not in repo)
+│   └── roast_my_resume.log  # Request logs (generated at runtime)
 ├── frontend/
 │   ├── lib/
-│   │   └── main.dart       # Flutter web app UI & logic
-│   ├── pubspec.yaml        # Flutter dependencies
-│   └── web/                # Web assets
+│   │   ├── main.dart        # Flutter web app UI & logic
+│   │   └── config.dart      # API configuration (environment-based)
+│   ├── pubspec.yaml         # Flutter dependencies
+│   └── web/                 # Web assets
 ├── app/
 │   ├── lib/
-│   │   └── main.dart       # Flutter mobile app UI & logic
-│   ├── pubspec.yaml        # Flutter dependencies
-│   ├── android/            # Android platform files
-│   └── ios/                # iOS platform files
-└── README.md
+│   │   ├── main.dart        # Flutter mobile app UI & logic
+│   │   └── config.dart      # API configuration (environment-based)
+│   ├── pubspec.yaml         # Flutter dependencies
+│   ├── android/             # Android platform files
+│   └── ios/                 # iOS platform files
+├── README.md
+└── FIXES_APPLIED.md         # Summary of recent improvements
 ```
 
 ## 🎯 Usage
