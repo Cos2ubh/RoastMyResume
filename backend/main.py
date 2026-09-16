@@ -8,10 +8,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 import fitz
 from google import genai
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -49,8 +49,11 @@ MODES = {
         "If it's bad, say it's bad. Be scathing but specific."
     ),
     "recruiter": (
-        "You are a senior recruiter at a top-tier firm who has reviewed 10,000 resumes. "
-        "Be professional but cutting. Evaluate purely on hiring criteria."
+        "You are a senior recruiter at a top-tier firm with 15 years of experience across "
+        "tech, consulting, finance, and operations. You have reviewed 10,000+ resumes. "
+        "Your job is to cut through the fluff, assess this candidate objectively, identify "
+        "exactly where they fall short for their target role, and tell them what would actually "
+        "move the needle — not generic advice, specific actions."
     ),
 }
 
@@ -67,6 +70,36 @@ FORMAT_INSTRUCTION = """Return ONLY a raw JSON object — no markdown, no code b
     "presentation": {"score": <0-100>, "comment": "<one sharp sentence>"}
   },
   "verdict": "<one closing line that lands>"
+}"""
+
+RECRUITER_FORMAT_INSTRUCTION = """Return ONLY a raw JSON object — no markdown, no code blocks, just the JSON itself:
+{
+  "score": <integer 0-100>,
+  "grade": "<letter grade: A+, A, A-, B+, B, B-, C+, C, C-, D, F>",
+  "summary": "<2-3 sentence overall recruiter assessment>",
+  "roast": "<what you would honestly tell this candidate if they asked you directly — 100-150 words, no sugarcoating>",
+  "sections": {
+    "experience": {"score": <0-100>, "comment": "<recruiter's read on this section>"},
+    "skills": {"score": <0-100>, "comment": "<recruiter's read on this section>"},
+    "education": {"score": <0-100>, "comment": "<recruiter's read on this section>"},
+    "presentation": {"score": <0-100>, "comment": "<recruiter's read on this section>"}
+  },
+  "verdict": "<one line you'd say walking out of the screening call>",
+  "candidate_level": "<junior|mid|senior — based purely on evidence in this resume>",
+  "detected_target_role": "<the role this resume appears to be targeting>",
+  "role_fit_assessment": "<2-3 sentences: how competitive is this candidate for that role right now, and why>",
+  "tips": [
+    "<specific, actionable improvement — not generic, name the exact gap>",
+    "<tip 2>",
+    "<tip 3>",
+    "<tip 4 if needed>",
+    "<tip 5 if needed>"
+  ],
+  "role_suggestions": [
+    {"role": "<alternative role title>", "reason": "<why this candidate's actual background fits better here>"},
+    {"role": "<alternative role title 2>", "reason": "<why>"},
+    {"role": "<alternative role title 3 if applicable>", "reason": "<why>"}
+  ]
 }"""
 
 
@@ -125,6 +158,11 @@ class RoastSections(BaseModel):
     presentation: SectionScore
 
 
+class RoleSuggestion(BaseModel):
+    role: str
+    reason: str
+
+
 class RoastResult(BaseModel):
     score: int
     grade: str
@@ -132,6 +170,12 @@ class RoastResult(BaseModel):
     roast: str
     sections: RoastSections
     verdict: str
+    # Recruiter mode only — None for normal/savage
+    candidate_level: Optional[str] = None
+    detected_target_role: Optional[str] = None
+    role_fit_assessment: Optional[str] = None
+    tips: Optional[List[str]] = None
+    role_suggestions: Optional[List[RoleSuggestion]] = None
 
 
 class RoastResponse(BaseModel):
@@ -154,6 +198,7 @@ async def roast_resume(
     request: Request,
     file: UploadFile = File(...),
     mode: str = "normal",
+    target_role: Optional[str] = Query(None),
 ):
     if mode not in MODES:
         raise HTTPException(
@@ -181,12 +226,23 @@ async def roast_resume(
     if not text.strip():
         raise HTTPException(status_code=400, detail="No text found in PDF.")
 
-    prompt = (
-        f"{MODES[mode]}\n\n"
-        f"Analyze the resume below.\n\n"
-        f"{FORMAT_INSTRUCTION}\n\n"
-        f"Resume:\n{text}"
-    )
+    if mode == "recruiter":
+        role_line = f"The candidate says they are targeting: {target_role}." if target_role else \
+                    "Infer the target role from the resume content."
+        prompt = (
+            f"{MODES[mode]}\n\n"
+            f"{role_line}\n\n"
+            f"Analyze the resume below.\n\n"
+            f"{RECRUITER_FORMAT_INSTRUCTION}\n\n"
+            f"Resume:\n{text}"
+        )
+    else:
+        prompt = (
+            f"{MODES[mode]}\n\n"
+            f"Analyze the resume below.\n\n"
+            f"{FORMAT_INSTRUCTION}\n\n"
+            f"Resume:\n{text}"
+        )
 
     try:
         response = client.models.generate_content(

@@ -44,6 +44,7 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
   bool _isLoading = false;
   String? _fileName;
   int _totalRoasted = 0;
+  final TextEditingController _targetRoleController = TextEditingController();
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -62,6 +63,7 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
   @override
   void dispose() {
     _animationController.dispose();
+    _targetRoleController.dispose();
     super.dispose();
   }
 
@@ -96,7 +98,10 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
       final bytes = result.files.single.bytes;
       if (bytes == null) throw Exception('Could not read file');
 
-      final uri = Uri.parse(AppConfig.roastUrl(_selectedMode));
+      final targetRole = _selectedMode == AppConfig.modeRecruiter
+          ? _targetRoleController.text.trim()
+          : null;
+      final uri = Uri.parse(AppConfig.roastUrl(_selectedMode, targetRole: targetRole));
       final request = http.MultipartRequest('POST', uri);
       request.files.add(http.MultipartFile.fromBytes(
         'file',
@@ -178,6 +183,10 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
                   if (_totalRoasted > 0) _buildStatsCounter(),
                   const SizedBox(height: 24),
                   _buildModeSelector(),
+                  if (_selectedMode == AppConfig.modeRecruiter) ...[
+                    const SizedBox(height: 20),
+                    _buildTargetRoleInput(),
+                  ],
                   const SizedBox(height: 32),
                   _buildUploadButton(),
                   if (_fileName != null) ...[
@@ -277,6 +286,27 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTargetRoleInput() {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 480),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: TextField(
+        controller: _targetRoleController,
+        decoration: const InputDecoration(
+          hintText: 'Target role — e.g. Product Manager, SDE-2 (optional)',
+          hintStyle: TextStyle(fontSize: 14, color: Colors.black38),
+          border: InputBorder.none,
+          icon: Icon(Icons.work_outline, color: Color(0xFFFF6B35), size: 20),
+        ),
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
       ),
     );
   }
@@ -453,6 +483,12 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
                 ),
                 const SizedBox(height: 24),
 
+                // Recruiter-only sections
+                if (_selectedMode == AppConfig.modeRecruiter) ...[
+                  _buildRecruiterSections(result),
+                  const SizedBox(height: 24),
+                ],
+
                 // Actions
                 Row(
                   children: [
@@ -490,6 +526,146 @@ class _RoastPageState extends State<RoastPage> with SingleTickerProviderStateMix
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRecruiterSections(Map<String, dynamic> result) {
+    final level = result['candidate_level'] as String?;
+    final targetRole = result['detected_target_role'] as String?;
+    final fitAssessment = result['role_fit_assessment'] as String?;
+    final tips = (result['tips'] as List<dynamic>?)?.cast<String>();
+    final suggestions = result['role_suggestions'] as List<dynamic>?;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(),
+        const SizedBox(height: 16),
+
+        // Candidate level + detected role
+        if (level != null || targetRole != null) ...[
+          Row(
+            children: [
+              if (level != null)
+                _buildLevelChip(level),
+              if (level != null && targetRole != null)
+                const SizedBox(width: 10),
+              if (targetRole != null)
+                Expanded(
+                  child: Text(
+                    'Targeting: $targetRole',
+                    style: const TextStyle(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Role fit assessment
+        if (fitAssessment != null) ...[
+          const Text('Fit Assessment', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+          const SizedBox(height: 8),
+          Text(fitAssessment, style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.6)),
+          const SizedBox(height: 20),
+        ],
+
+        // Tips
+        if (tips != null && tips.isNotEmpty) ...[
+          const Text('What to Fix', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+          const SizedBox(height: 10),
+          ...tips.asMap().entries.map((e) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  margin: const EdgeInsets.only(right: 10, top: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6B35).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${e.key + 1}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFFF6B35)),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(e.value, style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5)),
+                ),
+              ],
+            ),
+          )),
+          const SizedBox(height: 20),
+        ],
+
+        // Role suggestions
+        if (suggestions != null && suggestions.isNotEmpty) ...[
+          const Text('You Might Also Fit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+          const SizedBox(height: 10),
+          ...suggestions.map((s) {
+            final suggestion = s as Map<String, dynamic>;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.lightbulb_outline, size: 18, color: Color(0xFFFF6B35)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          suggestion['role'] as String,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          suggestion['reason'] as String,
+                          style: const TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildLevelChip(String level) {
+    final colors = {
+      'junior': const Color(0xFF1565C0),
+      'mid': const Color(0xFF2E7D32),
+      'senior': const Color(0xFF6A1B9A),
+    };
+    final color = colors[level.toLowerCase()] ?? Colors.grey[700]!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        level[0].toUpperCase() + level.substring(1),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
       ),
     );
   }

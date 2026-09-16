@@ -4,7 +4,13 @@ class AppConfig {
     defaultValue: 'http://localhost:8000',
   );
 
-  static String roastUrl(String mode) => '$baseUrl/roast?mode=$mode';
+  static String roastUrl(String mode, {String? targetRole}) {
+    final base = '$baseUrl/roast?mode=$mode';
+    if (targetRole != null && targetRole.isNotEmpty) {
+      return '$base&target_role=${Uri.encodeQueryComponent(targetRole)}';
+    }
+    return base;
+  }
   static String resultUrl(String id) => '$baseUrl/result/$id';
   static String get statsUrl => '$baseUrl/stats';
   static String get healthUrl => '$baseUrl/health';
